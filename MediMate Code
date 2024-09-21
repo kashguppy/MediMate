@@ -1,0 +1,539 @@
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, Bell, Calendar, Camera, CheckCircle, Clock } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+// Mock data for medications and interactions (same as before)
+const medications = [
+  { id: 1, name: 'Aspirin', activeIngredient: 'Acetylsalicylic acid', expiryDate: '2024-12-31', schedule: '1 tablet daily' },
+  { id: 2, name: 'Lisinopril', activeIngredient: 'Lisinopril', expiryDate: '2025-06-30', schedule: '1 tablet every morning' },
+  { id: 3, name: 'Metformin', activeIngredient: 'Metformin hydrochloride', expiryDate: '2025-03-31', schedule: '1 tablet twice daily with meals' },
+];
+
+const interactions = [
+  { id: 1, ingredients: ['Acetylsalicylic acid', 'Lisinopril'], severity: 'moderate', description: 'May decrease the antihypertensive effects of ACE inhibitors.' },
+];
+
+const BackgroundSVG = () => (
+  <svg className="fixed inset-0 w-full h-full -z-10" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.2" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg-gradient)" />
+    <circle cx="10%" cy="10%" r="50" fill="#3b82f6" fillOpacity="0.1" />
+    <circle cx="90%" cy="90%" r="100" fill="#93c5fd" fillOpacity="0.1" />
+    <path d="M0,50 Q50,0 100,50 T200,50" stroke="#60a5fa" strokeWidth="2" fill="none" strokeOpacity="0.2" />
+  </svg>
+);
+
+const MediMate = () => {
+  const [selectedMeds, setSelectedMeds] = useState([]);
+  const [interactionWarning, setInteractionWarning] = useState(null);
+  const [symptoms, setSymptoms] = useState('');
+  const [reminders, setReminders] = useState([]);
+  const [weight, setWeight] = useState('');
+  const [age, setAge] = useState('');
+  const [scannedMed, setScannedMed] = useState(null);
+
+  useEffect(() => {
+    checkInteractions();
+    checkExpirations();
+  }, [selectedMeds]);
+
+  const checkInteractions = () => {
+    const activeIngredients = selectedMeds.map(med => med.activeIngredient);
+    const foundInteraction = interactions.find(interaction =>
+      interaction.ingredients.every(ingredient => activeIngredients.includes(ingredient))
+    );
+
+    setInteractionWarning(foundInteraction);
+  };
+
+  const checkExpirations = () => {
+    const currentDate = new Date();
+    const expiringMeds = selectedMeds.filter(med => {
+      const expiryDate = new Date(med.expiryDate);
+      const daysUntilExpiry = Math.floor((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
+      return daysUntilExpiry <= 30;
+    });
+
+    setReminders(expiringMeds.map(med => `${med.name} expires on ${med.expiryDate}`));
+  };
+
+  const toggleMedication = (med) => {
+    setSelectedMeds(prevMeds =>
+      prevMeds.find(m => m.id === med.id)
+        ? prevMeds.filter(m => m.id !== med.id)
+        : [...prevMeds, med]
+    );
+  };
+
+  const simulatePillBottleScan = () => {
+    const randomMed = medications[Math.floor(Math.random() * medications.length)];
+    setScannedMed(randomMed);
+    if (!selectedMeds.find(med => med.id === randomMed.id)) {
+      setSelectedMeds(prevMeds => [...prevMeds, randomMed]);
+    }
+  };
+
+  return (
+    <>
+      <BackgroundSVG />
+      <div className="p-4 max-w-md mx-auto relative">
+        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">MediMate</h1>
+        
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Patient Information</CardHeader>
+          <CardContent>
+            <Input
+              type="number"
+              placeholder="Weight (kg)"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="mb-2"
+            />
+            <Input
+              type="number"
+              placeholder="Age"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Scan Pill Bottle</CardHeader>
+          <CardContent>
+            <Button onClick={simulatePillBottleScan} className="w-full bg-blue-500 hover:bg-blue-600">
+              <Camera className="mr-2" /> Scan Pill Bottle
+            </Button>
+            {scannedMed && (
+              <Alert className="mt-2">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Medication Scanned</AlertTitle>
+                <AlertDescription>{scannedMed.name} has been added to your list.</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Your Medications</CardHeader>
+          <CardContent>
+            {selectedMeds.map(med => (
+              <div key={med.id} className="mb-2 p-2 border rounded bg-blue-50">
+                <h3 className="font-bold text-blue-700">{med.name}</h3>
+                <p className="text-blue-600"><Clock className="inline mr-1" /> {med.schedule}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {interactionWarning && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Potential Interaction Detected</AlertTitle>
+            <AlertDescription>
+              {interactionWarning.description}
+              <br />
+              Severity: {interactionWarning.severity}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Symptom Tracker</CardHeader>
+          <CardContent>
+            <textarea
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              placeholder="Describe your symptoms here..."
+              className="w-full p-2 border rounded"
+              rows="4"
+            />
+          </CardContent>
+        </Card>
+
+        {reminders.length > 0 && (
+          <Card className="bg-white bg-opacity-90">
+            <CardHeader className="flex items-center">
+              <Bell className="mr-2" />
+              Medication Reminders
+            </CardHeader>
+            <CardContent>
+              <ul>
+                {reminders.map((reminder, index) => (
+                  <li key={index} className="mb-2 text-blue-600">{reminder}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
+  );
+};import React, { useState, useEffect } from 'react';
+import { AlertCircle, Bell, Calendar, Camera, CheckCircle, Clock } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+// Mock data for medications and interactions (same as before)
+const medications = [
+  { id: 1, name: 'Aspirin', activeIngredient: 'Acetylsalicylic acid', expiryDate: '2024-12-31', schedule: '1 tablet daily' },
+  { id: 2, name: 'Lisinopril', activeIngredient: 'Lisinopril', expiryDate: '2025-06-30', schedule: '1 tablet every morning' },
+  { id: 3, name: 'Metformin', activeIngredient: 'Metformin hydrochloride', expiryDate: '2025-03-31', schedule: '1 tablet twice daily with meals' },
+];
+
+const interactions = [
+  { id: 1, ingredients: ['Acetylsalicylic acid', 'Lisinopril'], severity: 'moderate', description: 'May decrease the antihypertensive effects of ACE inhibitors.' },
+];
+
+const BackgroundSVG = () => (
+  <svg className="fixed inset-0 w-full h-full -z-10" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.2" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg-gradient)" />
+    <circle cx="10%" cy="10%" r="50" fill="#3b82f6" fillOpacity="0.1" />
+    <circle cx="90%" cy="90%" r="100" fill="#93c5fd" fillOpacity="0.1" />
+    <path d="M0,50 Q50,0 100,50 T200,50" stroke="#60a5fa" strokeWidth="2" fill="none" strokeOpacity="0.2" />
+  </svg>
+);
+
+const MediMate = () => {
+  const [selectedMeds, setSelectedMeds] = useState([]);
+  const [interactionWarning, setInteractionWarning] = useState(null);
+  const [symptoms, setSymptoms] = useState('');
+  const [reminders, setReminders] = useState([]);
+  const [weight, setWeight] = useState('');
+  const [age, setAge] = useState('');
+  const [scannedMed, setScannedMed] = useState(null);
+
+  useEffect(() => {
+    checkInteractions();
+    checkExpirations();
+  }, [selectedMeds]);
+
+  const checkInteractions = () => {
+    const activeIngredients = selectedMeds.map(med => med.activeIngredient);
+    const foundInteraction = interactions.find(interaction =>
+      interaction.ingredients.every(ingredient => activeIngredients.includes(ingredient))
+    );
+
+    setInteractionWarning(foundInteraction);
+  };
+
+  const checkExpirations = () => {
+    const currentDate = new Date();
+    const expiringMeds = selectedMeds.filter(med => {
+      const expiryDate = new Date(med.expiryDate);
+      const daysUntilExpiry = Math.floor((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
+      return daysUntilExpiry <= 30;
+    });
+
+    setReminders(expiringMeds.map(med => `${med.name} expires on ${med.expiryDate}`));
+  };
+
+  const toggleMedication = (med) => {
+    setSelectedMeds(prevMeds =>
+      prevMeds.find(m => m.id === med.id)
+        ? prevMeds.filter(m => m.id !== med.id)
+        : [...prevMeds, med]
+    );
+  };
+
+  const simulatePillBottleScan = () => {
+    const randomMed = medications[Math.floor(Math.random() * medications.length)];
+    setScannedMed(randomMed);
+    if (!selectedMeds.find(med => med.id === randomMed.id)) {
+      setSelectedMeds(prevMeds => [...prevMeds, randomMed]);
+    }
+  };
+
+  return (
+    <>
+      <BackgroundSVG />
+      <div className="p-4 max-w-md mx-auto relative">
+        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">MediMate</h1>
+        
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Patient Information</CardHeader>
+          <CardContent>
+            <Input
+              type="number"
+              placeholder="Weight (kg)"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="mb-2"
+            />
+            <Input
+              type="number"
+              placeholder="Age"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Scan Pill Bottle</CardHeader>
+          <CardContent>
+            <Button onClick={simulatePillBottleScan} className="w-full bg-blue-500 hover:bg-blue-600">
+              <Camera className="mr-2" /> Scan Pill Bottle
+            </Button>
+            {scannedMed && (
+              <Alert className="mt-2">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Medication Scanned</AlertTitle>
+                <AlertDescription>{scannedMed.name} has been added to your list.</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Your Medications</CardHeader>
+          <CardContent>
+            {selectedMeds.map(med => (
+              <div key={med.id} className="mb-2 p-2 border rounded bg-blue-50">
+                <h3 className="font-bold text-blue-700">{med.name}</h3>
+                <p className="text-blue-600"><Clock className="inline mr-1" /> {med.schedule}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {interactionWarning && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Potential Interaction Detected</AlertTitle>
+            <AlertDescription>
+              {interactionWarning.description}
+              <br />
+              Severity: {interactionWarning.severity}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Symptom Tracker</CardHeader>
+          <CardContent>
+            <textarea
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              placeholder="Describe your symptoms here..."
+              className="w-full p-2 border rounded"
+              rows="4"
+            />
+          </CardContent>
+        </Card>
+
+        {reminders.length > 0 && (
+          <Card className="bg-white bg-opacity-90">
+            <CardHeader className="flex items-center">
+              <Bell className="mr-2" />
+              Medication Reminders
+            </CardHeader>
+            <CardContent>
+              <ul>
+                {reminders.map((reminder, index) => (
+                  <li key={index} className="mb-2 text-blue-600">{reminder}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
+  );
+};import React, { useState, useEffect } from 'react';
+import { AlertCircle, Bell, Calendar, Camera, CheckCircle, Clock } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+// Mock data for medications and interactions (same as before)
+const medications = [
+  { id: 1, name: 'Aspirin', activeIngredient: 'Acetylsalicylic acid', expiryDate: '2024-12-31', schedule: '1 tablet daily' },
+  { id: 2, name: 'Lisinopril', activeIngredient: 'Lisinopril', expiryDate: '2025-06-30', schedule: '1 tablet every morning' },
+  { id: 3, name: 'Metformin', activeIngredient: 'Metformin hydrochloride', expiryDate: '2025-03-31', schedule: '1 tablet twice daily with meals' },
+];
+
+const interactions = [
+  { id: 1, ingredients: ['Acetylsalicylic acid', 'Lisinopril'], severity: 'moderate', description: 'May decrease the antihypertensive effects of ACE inhibitors.' },
+];
+
+const BackgroundSVG = () => (
+  <svg className="fixed inset-0 w-full h-full -z-10" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.2" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg-gradient)" />
+    <circle cx="10%" cy="10%" r="50" fill="#3b82f6" fillOpacity="0.1" />
+    <circle cx="90%" cy="90%" r="100" fill="#93c5fd" fillOpacity="0.1" />
+    <path d="M0,50 Q50,0 100,50 T200,50" stroke="#60a5fa" strokeWidth="2" fill="none" strokeOpacity="0.2" />
+  </svg>
+);
+
+const MediMate = () => {
+  const [selectedMeds, setSelectedMeds] = useState([]);
+  const [interactionWarning, setInteractionWarning] = useState(null);
+  const [symptoms, setSymptoms] = useState('');
+  const [reminders, setReminders] = useState([]);
+  const [weight, setWeight] = useState('');
+  const [age, setAge] = useState('');
+  const [scannedMed, setScannedMed] = useState(null);
+
+  useEffect(() => {
+    checkInteractions();
+    checkExpirations();
+  }, [selectedMeds]);
+
+  const checkInteractions = () => {
+    const activeIngredients = selectedMeds.map(med => med.activeIngredient);
+    const foundInteraction = interactions.find(interaction =>
+      interaction.ingredients.every(ingredient => activeIngredients.includes(ingredient))
+    );
+
+    setInteractionWarning(foundInteraction);
+  };
+
+  const checkExpirations = () => {
+    const currentDate = new Date();
+    const expiringMeds = selectedMeds.filter(med => {
+      const expiryDate = new Date(med.expiryDate);
+      const daysUntilExpiry = Math.floor((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
+      return daysUntilExpiry <= 30;
+    });
+
+    setReminders(expiringMeds.map(med => `${med.name} expires on ${med.expiryDate}`));
+  };
+
+  const toggleMedication = (med) => {
+    setSelectedMeds(prevMeds =>
+      prevMeds.find(m => m.id === med.id)
+        ? prevMeds.filter(m => m.id !== med.id)
+        : [...prevMeds, med]
+    );
+  };
+
+  const simulatePillBottleScan = () => {
+    const randomMed = medications[Math.floor(Math.random() * medications.length)];
+    setScannedMed(randomMed);
+    if (!selectedMeds.find(med => med.id === randomMed.id)) {
+      setSelectedMeds(prevMeds => [...prevMeds, randomMed]);
+    }
+  };
+
+  return (
+    <>
+      <BackgroundSVG />
+      <div className="p-4 max-w-md mx-auto relative">
+        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">MediMate</h1>
+        
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Patient Information</CardHeader>
+          <CardContent>
+            <Input
+              type="number"
+              placeholder="Weight (kg)"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="mb-2"
+            />
+            <Input
+              type="number"
+              placeholder="Age"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Scan Pill Bottle</CardHeader>
+          <CardContent>
+            <Button onClick={simulatePillBottleScan} className="w-full bg-blue-500 hover:bg-blue-600">
+              <Camera className="mr-2" /> Scan Pill Bottle
+            </Button>
+            {scannedMed && (
+              <Alert className="mt-2">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Medication Scanned</AlertTitle>
+                <AlertDescription>{scannedMed.name} has been added to your list.</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Your Medications</CardHeader>
+          <CardContent>
+            {selectedMeds.map(med => (
+              <div key={med.id} className="mb-2 p-2 border rounded bg-blue-50">
+                <h3 className="font-bold text-blue-700">{med.name}</h3>
+                <p className="text-blue-600"><Clock className="inline mr-1" /> {med.schedule}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {interactionWarning && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Potential Interaction Detected</AlertTitle>
+            <AlertDescription>
+              {interactionWarning.description}
+              <br />
+              Severity: {interactionWarning.severity}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="mb-4 bg-white bg-opacity-90">
+          <CardHeader>Symptom Tracker</CardHeader>
+          <CardContent>
+            <textarea
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              placeholder="Describe your symptoms here..."
+              className="w-full p-2 border rounded"
+              rows="4"
+            />
+          </CardContent>
+        </Card>
+
+        {reminders.length > 0 && (
+          <Card className="bg-white bg-opacity-90">
+            <CardHeader className="flex items-center">
+              <Bell className="mr-2" />
+              Medication Reminders
+            </CardHeader>
+            <CardContent>
+              <ul>
+                {reminders.map((reminder, index) => (
+                  <li key={index} className="mb-2 text-blue-600">{reminder}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
+  );
+};
+export default MediMate;
